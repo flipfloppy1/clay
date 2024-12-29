@@ -36,6 +36,18 @@ FT_Library gFTLib;
 int gFontNum = 0;
 Angle_Font gAngleFonts[MAX_FONTS];
 
+void Clay_Angle_GL_Init(int width, int height);
+
+void DebugMsg(
+    GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar *message, const void *userParam
+) {
+    fprintf(stderr, "%s\n", message);
+}
+
+void GetFramebufferSize(int *width, int *height) {
+    glfwGetFramebufferSize(gWindow, width, height);
+}
+
 void Clay_Angle_Initialize(int width, int height, const char *title) {
     if (!glfwInit()) {
         fprintf(stderr, "Failed to init glfw");
@@ -46,6 +58,7 @@ void Clay_Angle_Initialize(int width, int height, const char *title) {
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
     glfwWindowHint(GLFW_CONTEXT_CREATION_API, GLFW_EGL_CONTEXT_API);
     glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_ES_API);
+    glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GLFW_TRUE);
     glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
 
     gWindow = glfwCreateWindow(width, height, title, NULL, NULL);
@@ -61,12 +74,16 @@ void Clay_Angle_Initialize(int width, int height, const char *title) {
     }
 
     glViewport(0, 0, width, height);
+    glDebugMessageCallback(DebugMsg, NULL);
 
-    if (FT_Init_FreeType(&gFTLib)) {
+        if (FT_Init_FreeType(&gFTLib)) {
         fprintf(stderr, "Failed to init freetype");
         glfwTerminate();
         exit(1);
     }
+
+    glfwGetFramebufferSize(gWindow, &width, &height);
+    Clay_Angle_GL_Init(width, height);
 }
 
 int Clay_Angle_LoadFont(Clay_String *path, int size) {
