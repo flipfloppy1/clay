@@ -8,11 +8,11 @@
 #include "GLFW/glfw3.h"
 
 int main() {
-    int screenWidth = 1920;
-    int screenHeight = 1080;
-    Clay_Angle_Initialize(screenWidth, screenHeight, "Clay Angle Renderer Test");
+    Clay_Angle_Initialize(0, 0, "Clay Angle Renderer Test");
 
     uint64_t capacity = Clay_MinMemorySize();
+    int screenWidth, screenHeight;
+    glfwGetWindowSize(gWindow, &screenWidth, &screenHeight);
     Clay_Arena arena = Clay_CreateArenaWithCapacityAndMemory(capacity, malloc(capacity));
     Clay_Initialize(arena, (Clay_Dimensions){screenWidth, screenHeight}, (Clay_ErrorHandler){0});
     Clay_SetMeasureTextFunction(Clay_HB_MeasureText);
@@ -25,7 +25,7 @@ int main() {
 
         Clay_BeginLayout();
 
-        CLAY(CLAY_LAYOUT({.sizing = {.width = CLAY_SIZING_FIXED(10), .height = CLAY_SIZING_FIXED(100)}}),CLAY_RECTANGLE({.color = {1, 1, 1}})) {}
+        CLAY(CLAY_LAYOUT({.sizing = {.width = CLAY_SIZING_FIXED(10), .height = CLAY_SIZING_FIXED(100)}}),CLAY_RECTANGLE({.cornerRadius = {.topLeft = 20,.bottomLeft = 20, .bottomRight = 20,.topRight = 20},.color = {1, 1, 1, 1}})) {}
 
         Clay_RenderCommandArray commands = Clay_EndLayout();
         Clay_Angle_Render(commands);

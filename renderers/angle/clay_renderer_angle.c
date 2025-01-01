@@ -19,8 +19,7 @@ typedef struct {
 } vec4;
 
 typedef struct {
-    vec4 bounds, color;
-    float radius;
+    vec4 position, color, sizeCenter, radius;
 } RectVert;
 
 typedef struct {
@@ -70,39 +69,37 @@ void rectFree(RectVector vector) {
 
 const char *rectVertShader = "attribute vec4 a_position;\n"
                              "attribute vec4 a_color;\n"
-                             "attribute float a_radius;\n"
+                             "attribute vec4 a_sizeCenter;\n"
+                             "attribute vec4 a_radius;\n"
                              "varying vec4 v_color;\n"
-                             "varying vec4 v_bounds;\n"
-                             "varying float v_radius;\n"
+                             "varying vec4 v_sizeCenter;\n"
+                             "varying vec4 v_radius;\n"
                              "void main() {\n"
-                             "    v_bounds = a_position;\n"
+                             "    v_sizeCenter = vec4(a_sizeCenter.xy,a_sizeCenter.zw);\n"
                              "    v_color = a_color;\n"
                              "    v_radius = a_radius;\n"
-                             "    gl_Position = vec4(a_position.xy,0.0f,1.0f);\n"
+                             "    gl_Position = vec4(a_position.x,a_position.y,0.0,1.0);\n"
                              "}\n";
 
-const char *rectFragShader = "precision highp float;\n"
-                             "varying vec4 v_bounds;\n"
+const char *rectFragShader = "// Adapted from https://www.shadertoy.com/view/fsdyzB by inobelar (coz I can't shader for the life of me)\n"
+                             "precision highp float;\n"
+                             "varying vec4 v_sizeCenter;\n"
                              "varying vec4 v_color;\n"
-                             "varying float v_radius;\n"
-                             "uniform vec2 u_resolution;\n"
+                             "varying vec4 v_radius;\n"
+                             "float roundedBoxSDF(vec2 CenterPosition, vec2 Size, vec4 Radius)\n"
+                             "{\n"
+                             "    Radius.xy = (CenterPosition.x > 0.0) ? Radius.xy : Radius.zw;\n"
+                             "    Radius.x  = (CenterPosition.y > 0.0) ? Radius.x  : Radius.y;\n"
+                             "    vec2 q = abs(CenterPosition)-Size+Radius.x;\n"
+                             "    return min(max(q.x,q.y),0.0) + length(max(q,0.0)) - Radius.x;\n"
+                             "}\n"
                              "void main() {\n"
-                             "    float x = v_bounds.x;\n"
-                             "    float y = v_bounds.y;\n"
-                             "    float width = v_bounds.z;\n"
-                             "    float height = v_bounds.w;\n"
-                             "    float distX = abs(gl_FragCoord.x - (x + width * 0.5));\n"
-                             "    float distY = abs(gl_FragCoord.y - (y + height * 0.5));\n"
-                             "    if (distX > (width * 0.5 + v_radius) || distY > (height * 0.5 + v_radius)) {\n"
-                             "        //discard;\n"
-                             "    }\n"
-                             "    if (distX > (width * 0.5) && distY > (height * 0.5)) {\n"
-                             "        float cornerDist = length(vec2(distX - width * 0.5, distY - height * 0.5));\n"
-                             "        if (cornerDist > v_radius) {\n"
-                             "            //discard;\n"
-                             "        }\n"
-                             "    }\n"
-                             "    gl_FragColor = v_color;\n"
+                             "    vec2 fragCoord = vec2(gl_FragCoord.x,1440.0-gl_FragCoord.y);\n"
+                             "    vec2 halfSize = (v_sizeCenter.xy / 2.0); // Rectangle extents (half of the size)\n"
+                             "    float edgeSoftness   = 1.5; // How soft the edges should be (in pixels).\n"
+                             "    float distance = roundedBoxSDF(gl_FragCoord.xy - v_sizeCenter.zw, halfSize, v_radius);\n"
+                             "    float smoothedAlpha = 1.0-smoothstep(0.0, edgeSoftness, distance);\n"
+                             "    gl_FragColor = v_color * (1.0 - smoothedAlpha);\n"
                              "}\n";
 
 void Clay_Angle_GL_Init(int winWidth, int winHeight) {
@@ -122,7 +119,8 @@ void Clay_Angle_GL_Init(int winWidth, int winHeight) {
 
     glBindAttribLocation(rectProgram, 0, "a_position");
     glBindAttribLocation(rectProgram, 1, "a_color");
-    glBindAttribLocation(rectProgram, 2, "a_radius");
+    glBindAttribLocation(rectProgram, 2, "a_sizeCenter");
+    glBindAttribLocation(rectProgram, 3, "a_radius");
 
     glCompileShader(rectVert);
     glCompileShader(rectFrag);
@@ -143,18 +141,14 @@ void Clay_Angle_GL_Init(int winWidth, int winHeight) {
 
     glUseProgram(rectProgram);
 
-    glUniform2f(glGetUniformLocation(rectProgram, "u_resolution"), (float)winWidth, (float)winHeight);
-
     glGenVertexArrays(1, &rectVAO);
     glGenBuffers(1, &rectBuffer);
     glBindBuffer(GL_ARRAY_BUFFER, rectBuffer);
     glBindVertexArray(rectVAO);
-    glVertexAttribPointer(0, 4, GL_FLOAT, false, sizeof(RectVert), (void *)0);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(1, 4, GL_FLOAT, false, sizeof(RectVert), (void *)(sizeof(float) * 4));
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(2, 1, GL_FLOAT, false, sizeof(RectVert), (void *)(sizeof(float) * 5));
-    glEnableVertexAttribArray(2);
+    for (int i = 0; i < 4; i++) {
+        glVertexAttribPointer(i, 4, GL_FLOAT, false, sizeof(RectVert), (void *)(i * sizeof(float) * 4));
+        glEnableVertexAttribArray(i);
+    }
 }
 
 void Clay_Angle_DrawText(Clay_String *text, Clay_TextElementConfig *config);
@@ -189,48 +183,48 @@ void Clay_Angle_Render(Clay_RenderCommandArray renderCommands) {
         case CLAY_RENDER_COMMAND_TYPE_RECTANGLE: {
             Clay_RectangleElementConfig *config = command->config.rectangleElementConfig;
             RectVert rect[6];
-            //printf("Bounds are: %f,%f,%f,%f\n", boundingBox.x, boundingBox.y, boundingBox.width, boundingBox.height);
-            rect[0].bounds = (vec4
+            // printf("Bounds are: %f,%f,%f,%f\n", boundingBox.x, boundingBox.y, boundingBox.width, boundingBox.height);
+            rect[0].position = (vec4
             ){.x = boundingBox.x,
               .y = boundingBox.y,
               .z = boundingBox.x + boundingBox.width,
               .w = boundingBox.height + boundingBox.y};
-            rect[1].bounds = (vec4
+            rect[1].position = (vec4
             ){.x = boundingBox.x + boundingBox.width,
               .y = boundingBox.y,
               .z = boundingBox.x + boundingBox.width,
               .w = boundingBox.height + boundingBox.y};
-            rect[2].bounds = (vec4
+            rect[2].position = (vec4
             ){.x = boundingBox.x + boundingBox.width,
               .y = boundingBox.y + boundingBox.height,
               .z = boundingBox.x + boundingBox.width,
               .w = boundingBox.height + boundingBox.y};
-            rect[3].bounds = (vec4
+            rect[3].position = (vec4
             ){.x = boundingBox.x,
               .y = boundingBox.y + boundingBox.height,
               .z = boundingBox.x + boundingBox.width,
               .w = boundingBox.height + boundingBox.y};
-            rect[4].bounds = (vec4
+            rect[4].position = (vec4
             ){.x = boundingBox.x,
               .y = boundingBox.y,
               .z = boundingBox.x + boundingBox.width,
               .w = boundingBox.height + boundingBox.y};
-            rect[5].bounds = (vec4
+            rect[5].position = (vec4
             ){.x = boundingBox.x + boundingBox.width,
               .y = boundingBox.y + boundingBox.height,
               .z = boundingBox.x + boundingBox.width,
               .w = boundingBox.height + boundingBox.y};
             for (int i = 0; i < 6; i++) {
                 rect[i].color = (vec4){.x = config->color.r, .y = config->color.g, .z = config->color.b, .w = config->color.a};
-                rect[i].radius = config->cornerRadius.topLeft;
+                rect[i].radius = (vec4){ .x = (float)config->cornerRadius.topRight, .y = (float)config->cornerRadius.bottomRight, .z = (float)config->cornerRadius.topLeft, .w = (float)config->cornerRadius.bottomLeft };
                 // Transform to GL coord space
-                rect[i].bounds.x = (rect[i].bounds.x / wWidth) * 2.0f - 1.0f;
-                rect[i].bounds.y = 1.0f - ((rect[i].bounds.y / wHeight) * 2.0f);
-                rect[i].bounds.z = (rect[i].bounds.z / wWidth) * 2.0f - 1.0f;
-                rect[i].bounds.w = 1.0f - ((rect[i].bounds.w / wHeight) * 2.0f);
-                //printf("Got a vertex: %f,%f\n", rect[i].bounds.x, rect[i].bounds.y);
+                rect[i].position.x = (rect[i].position.x / wWidth) * 2.0f - 1.0f;
+                rect[i].position.y = 1.0f - ((rect[i].position.y / wHeight) * 2.0f);
+                rect[i].position.z = (rect[i].position.z / wWidth) * 2.0f - 1.0f;
+                rect[i].position.w = 1.0f - ((rect[i].position.w / wHeight) * 2.0f);
+                rect[i].sizeCenter = (vec4){ .x = boundingBox.width, .y = boundingBox.height, .z = boundingBox.x + boundingBox.width / 2.0f, .w = boundingBox.y + boundingBox.height / 2.0f };
+                // printf("Got a vertex: %f,%f\n", rect[i].bounds.x, rect[i].bounds.y);
             }
-            printf("color: %f, %f, %f, %f\n",rect[0].color.x,rect[0].color.y,rect[0].color.z,rect[0].color.w);
             rectPut(&rectVector, rect, 6);
             break;
         }
@@ -245,6 +239,7 @@ void Clay_Angle_Render(Clay_RenderCommandArray renderCommands) {
         }
         }
     }
+
     glBindBuffer(GL_ARRAY_BUFFER, rectBuffer);
     glBufferData(GL_ARRAY_BUFFER, rectVector.length * sizeof(RectVert), rectVector.data, GL_DYNAMIC_DRAW);
 

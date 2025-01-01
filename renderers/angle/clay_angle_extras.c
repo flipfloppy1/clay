@@ -49,15 +49,6 @@ void GetFramebufferSize(int *width, int *height) {
 }
 
 void Clay_Angle_Initialize(int width, int height, const char *title) {
-    printf("Supported platforms:\n");
-    if (glfwPlatformSupported(GLFW_PLATFORM_WAYLAND)) {
-        printf("\twayland\n");
-    }
-    if (glfwPlatformSupported(GLFW_PLATFORM_X11)) {
-        printf("\tX11\n");
-    }
-    glfwInitHint(GLFW_PLATFORM, GLFW_PLATFORM_WAYLAND);
-
     if (!glfwInit()) {
         fprintf(stderr, "Failed to init glfw\n");
         exit(1);
@@ -69,6 +60,12 @@ void Clay_Angle_Initialize(int width, int height, const char *title) {
     glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_ES_API);
     glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GLFW_TRUE);
     glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
+
+    if (!(width && height)) {
+        const GLFWvidmode *vidMode = glfwGetVideoMode(glfwGetPrimaryMonitor());
+        width = vidMode->width;
+        height = vidMode->height;
+    }
 
     gWindow = glfwCreateWindow(width, height, title, NULL, NULL);
 
