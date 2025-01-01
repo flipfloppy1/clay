@@ -34,8 +34,10 @@ RectVector makeRectVector() { return (RectVector){.data = NULL, .length = 0, .ca
 
 void rectPut(RectVector *vector, RectVert *verts, unsigned long length) {
     if (vector->data == NULL) {
-        vector->capacity = 4;
+        vector->capacity = length < 4 ? 4 : length;
+        vector->length = length;
         vector->data = malloc(vector->capacity * sizeof(RectVert));
+        memcpy(vector->data, verts, length * sizeof(RectVert));
 
     } else if (vector->length + length > vector->capacity) {
 
@@ -51,9 +53,11 @@ void rectPut(RectVector *vector, RectVert *verts, unsigned long length) {
             vector->data = malloc(sizeof(RectVert) * length);
             memcpy(vector->data, verts, length * sizeof(RectVert));
         } else {
+            vector->length = vector->length + length;
         }
     } else {
         memcpy(vector->data + (vector->length * sizeof(RectVector)), verts, length * sizeof(RectVert));
+        vector->length = vector->length + length;
     }
 }
 
@@ -226,6 +230,7 @@ void Clay_Angle_Render(Clay_RenderCommandArray renderCommands) {
                 rect[i].bounds.w = 1.0f - ((rect[i].bounds.w / wHeight) * 2.0f);
                 //printf("Got a vertex: %f,%f\n", rect[i].bounds.x, rect[i].bounds.y);
             }
+            printf("color: %f, %f, %f, %f\n",rect[0].color.x,rect[0].color.y,rect[0].color.z,rect[0].color.w);
             rectPut(&rectVector, rect, 6);
             break;
         }

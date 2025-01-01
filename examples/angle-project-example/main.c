@@ -25,7 +25,7 @@ int main() {
 
         Clay_BeginLayout();
 
-        CLAY(CLAY_LAYOUT({.sizing = {.width = CLAY_SIZING_GROW(), .height = CLAY_SIZING_FIXED(100)}}),CLAY_RECTANGLE({.color = {0, 0, 0}})) {}
+        CLAY(CLAY_LAYOUT({.sizing = {.width = CLAY_SIZING_FIXED(10), .height = CLAY_SIZING_FIXED(100)}}),CLAY_RECTANGLE({.color = {1, 1, 1}})) {}
 
         Clay_RenderCommandArray commands = Clay_EndLayout();
         Clay_Angle_Render(commands);

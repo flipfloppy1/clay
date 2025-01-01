@@ -56,7 +56,7 @@ void Clay_Angle_Initialize(int width, int height, const char *title) {
     if (glfwPlatformSupported(GLFW_PLATFORM_X11)) {
         printf("\tX11\n");
     }
-    glfwInitHint(GLFW_PLATFORM, GLFW_PLATFORM_X11);
+    glfwInitHint(GLFW_PLATFORM, GLFW_PLATFORM_WAYLAND);
 
     if (!glfwInit()) {
         fprintf(stderr, "Failed to init glfw\n");
@@ -72,15 +72,16 @@ void Clay_Angle_Initialize(int width, int height, const char *title) {
 
     gWindow = glfwCreateWindow(width, height, title, NULL, NULL);
 
-    glfwMakeContextCurrent(gWindow);
-
-    glfwSetInputMode(gWindow, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-
     if (!gWindow) {
         fprintf(stderr, "Failed to init glfw window\n");
         glfwTerminate();
         exit(1);
     }
+
+    glfwMakeContextCurrent(gWindow);
+
+    glfwSetInputMode(gWindow, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+
 
     glViewport(0, 0, width, height);
     glDebugMessageCallback(DebugMsg, NULL);
