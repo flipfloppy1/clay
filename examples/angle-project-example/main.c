@@ -1,5 +1,10 @@
 #include "../../renderers/angle/clay_angle_extras.c"
 #include "../../renderers/angle/clay_renderer_angle.c"
+#ifndef CLAY_ANGLE_OPENGL_HEADER
+#include <angle_gl.h>
+#else
+#include CLAY_ANGLE_OPENGL_HEADER
+#endif
 #include "GLFW/glfw3.h"
 
 int main() {
@@ -28,5 +33,7 @@ int main() {
 
         glfwSwapBuffers(gWindow);
     }
+
+    glfwTerminate();
     return 0;
 }

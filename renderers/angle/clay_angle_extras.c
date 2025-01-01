@@ -49,8 +49,17 @@ void GetFramebufferSize(int *width, int *height) {
 }
 
 void Clay_Angle_Initialize(int width, int height, const char *title) {
+    printf("Supported platforms:\n");
+    if (glfwPlatformSupported(GLFW_PLATFORM_WAYLAND)) {
+        printf("\twayland\n");
+    }
+    if (glfwPlatformSupported(GLFW_PLATFORM_X11)) {
+        printf("\tX11\n");
+    }
+    glfwInitHint(GLFW_PLATFORM, GLFW_PLATFORM_X11);
+
     if (!glfwInit()) {
-        fprintf(stderr, "Failed to init glfw");
+        fprintf(stderr, "Failed to init glfw\n");
         exit(1);
     }
 
@@ -68,7 +77,7 @@ void Clay_Angle_Initialize(int width, int height, const char *title) {
     glfwSetInputMode(gWindow, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
 
     if (!gWindow) {
-        fprintf(stderr, "Failed to init glfw window");
+        fprintf(stderr, "Failed to init glfw window\n");
         glfwTerminate();
         exit(1);
     }
@@ -77,7 +86,7 @@ void Clay_Angle_Initialize(int width, int height, const char *title) {
     glDebugMessageCallback(DebugMsg, NULL);
 
         if (FT_Init_FreeType(&gFTLib)) {
-        fprintf(stderr, "Failed to init freetype");
+        fprintf(stderr, "Failed to init freetype\n");
         glfwTerminate();
         exit(1);
     }
@@ -89,7 +98,7 @@ void Clay_Angle_Initialize(int width, int height, const char *title) {
 int Clay_Angle_LoadFont(Clay_String *path, int size) {
 
     if (gFontNum >= MAX_FONTS) {
-        fprintf(stderr, "Font limit reached");
+        fprintf(stderr, "Font limit reached\n");
         return -1;
     }
 
@@ -107,7 +116,7 @@ int Clay_Angle_LoadFont(Clay_String *path, int size) {
     FT_Error error = FT_New_Face(gFTLib, strArr, 0, &font.ftFace);
 
     if (error) {
-        fprintf(stderr, "Error loading font:'%s'", strArr);
+        fprintf(stderr, "Error loading font:'%s'\n", strArr);
         hb_blob_destroy(blob);
         hb_face_destroy(face);
         hb_font_destroy(font.hbFont);
@@ -126,7 +135,7 @@ int Clay_Angle_LoadFont(Clay_String *path, int size) {
 
     for (unsigned char c = 0; c < 128; c++) {
         if (FT_Load_Char(font.ftFace, c, FT_LOAD_RENDER)) {
-            fprintf(stderr, "Failed to load glyph %c in %s", c, strArr);
+            fprintf(stderr, "Failed to load glyph %c in %s\n", c, strArr);
             continue;
         }
         FT_Bitmap bitmap = font.ftFace->glyph->bitmap;
