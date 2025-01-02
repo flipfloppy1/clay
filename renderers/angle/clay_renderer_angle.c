@@ -96,13 +96,16 @@ const char *rectFragShader = "// Adapted from https://www.shadertoy.com/view/fsd
                              "void main() {\n"
                              "    vec2 fragCoord = vec2(gl_FragCoord.x,1440.0-gl_FragCoord.y);\n"
                              "    vec2 halfSize = (v_sizeCenter.xy / 2.0); // Rectangle extents (half of the size)\n"
-                             "    float edgeSoftness   = 1.5; // How soft the edges should be (in pixels).\n"
+                             "    float edgeSoftness   = 2.0; // How soft the edges should be (in pixels).\n"
                              "    float distance = roundedBoxSDF(gl_FragCoord.xy - v_sizeCenter.zw, halfSize, v_radius);\n"
                              "    float smoothedAlpha = 1.0-smoothstep(0.0, edgeSoftness, distance);\n"
-                             "    gl_FragColor = v_color * (1.0 - smoothedAlpha);\n"
+                             "    gl_FragColor = vec4(v_color.xyz,v_color.a * smoothedAlpha);\n"
                              "}\n";
 
 void Clay_Angle_GL_Init(int winWidth, int winHeight) {
+
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
     rectProgram = glCreateProgram();
     GLuint rectVert = glCreateShader(GL_VERTEX_SHADER);

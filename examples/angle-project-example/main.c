@@ -25,7 +25,9 @@ int main() {
 
         Clay_BeginLayout();
 
-        CLAY(CLAY_LAYOUT({.sizing = {.width = CLAY_SIZING_FIXED(10), .height = CLAY_SIZING_FIXED(100)}}),CLAY_RECTANGLE({.cornerRadius = {.topLeft = 20,.bottomLeft = 20, .bottomRight = 20,.topRight = 20},.color = {1, 1, 1, 1}})) {}
+        CLAY(CLAY_LAYOUT({.childAlignment={.x=CLAY_ALIGN_X_CENTER,.y=CLAY_ALIGN_Y_CENTER},.sizing = {.width = CLAY_SIZING_GROW(), .height = CLAY_SIZING_GROW()}})) {
+            CLAY(CLAY_LAYOUT({.sizing = {.width = CLAY_SIZING_FIXED(200), .height = CLAY_SIZING_FIXED(200) }}),CLAY_RECTANGLE({.cornerRadius = {.topLeft = 15,.bottomLeft = 15, .bottomRight = 15,.topRight = 15},.color = {1, 1, 1, 1}})) {}
+        }
 
         Clay_RenderCommandArray commands = Clay_EndLayout();
         Clay_Angle_Render(commands);
