@@ -1,3 +1,5 @@
+// This file contains extra rendering systems that users may want to swap out with their own libraries/implementations
+
 #ifndef CLAY_ANGLE_OPENGL_HEADER
 #include <angle_gl.h>
 #else

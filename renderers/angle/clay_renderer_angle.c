@@ -1,4 +1,4 @@
-
+// This file contains the core rendering logic of the ANGLE/GLES renderer
 
 #ifndef CLAY_ANGLE_OPENGL_HEADER
 #include <angle_gl.h>
@@ -14,6 +14,9 @@
 GLuint rectProgram;
 GLuint rectBuffer;
 GLuint rectVAO;
+GLuint textProgram;
+GLuint textBuffer;
+GLuint textVAO;
 
 typedef struct {
     vec4 position, color, sizeCenter, radius;
@@ -81,8 +84,8 @@ const char *rectVertShader = "attribute vec4 a_position;\n"
                              "}\n";
 
 const char *imgVertShader = "attribute vec2 a_position;\n"
-                            "attribute vec4 a_texPos;\n"
-                            "varying vec4 v_texPos;\n"
+                            "attribute vec2 a_texPos;\n"
+                            "varying vec2 v_texPos;\n"
                             "void main() {\n"
                             "    v_texPos = a_texPos;\n"
                             "    gl_Position = vec4(a_position.x,a_position.y,0.0,1.0);\n"
@@ -93,7 +96,7 @@ const char *imgFragShader =
     "varying vec2 v_texPos;\n"
     "uniform sampler2D img;\n"
     "void main() {\n"
-    "    gl_FragColor = texture(img, v_texPos);\n"
+    "    gl_FragColor = texture2D(img, v_texPos);\n"
     "}\n";
 
 const char *rectFragShader =
@@ -118,56 +121,92 @@ const char *rectFragShader =
     "    //gl_FragColor = v_color;\n"
     "}\n";
 
+    typedef struct {
+        GLuint vert;
+        GLuint frag;
+    } Shaders;
+
+Shaders Clay_Angle_CreateShaderProgram(GLuint* program, GLuint* vao, const char* vertShader, const char* fragShader) {
+    *program = glCreateProgram();
+    GLuint vert = glCreateShader(GL_VERTEX_SHADER);
+    GLuint frag = glCreateShader(GL_FRAGMENT_SHADER);
+
+    GLint vertSize = strlen(vertShader);
+    glShaderSource(vert, 1, &vertShader, &vertSize);
+
+    GLint fragSize = strlen(fragShader);
+    glShaderSource(frag, 1, &fragShader, &fragSize);
+
+    glAttachShader(*program, vert);
+    glAttachShader(*program, frag);
+
+    return (Shaders){vert, frag};
+}
+
+void Clay_Angle_CompileShader(GLuint program, GLuint* buffer, GLuint* vao, GLuint vert, GLuint frag) {
+    glCompileShader(vert);
+    glCompileShader(frag);
+
+    glLinkProgram(program);
+
+    GLint success;
+    glGetProgramiv(program, GL_LINK_STATUS, &success);
+    if (!success) {
+        char buf[256];
+        GLsizei length;
+        glGetProgramInfoLog(program, 256, &length, buf);
+        buf[length] = '\0';
+        fprintf(stderr, "%s", buf);
+    }
+
+    glValidateProgram(program);
+
+    glGetProgramiv(program, GL_VALIDATE_STATUS, &success);
+    if (!success) {
+        char buf[256];
+        GLsizei length;
+        glGetProgramInfoLog(program, 256, &length, buf);
+        buf[length] = '\0';
+        fprintf(stderr, "%s", buf);
+    }
+
+    glUseProgram(program);
+
+    glGenVertexArrays(1, vao);
+    glGenBuffers(1, buffer);
+    glBindBuffer(GL_ARRAY_BUFFER, *buffer);
+    glBindVertexArray(*vao);
+}
+
 void Clay_Angle_GL_Init(int winWidth, int winHeight) {
 
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-    rectProgram = glCreateProgram();
-    GLuint rectVert = glCreateShader(GL_VERTEX_SHADER);
-    GLuint rectFrag = glCreateShader(GL_FRAGMENT_SHADER);
-
-    GLint rectVertSize = strlen(rectVertShader);
-    glShaderSource(rectVert, 1, &rectVertShader, &rectVertSize);
-
-    GLint rectFragSize = strlen(rectFragShader);
-    glShaderSource(rectFrag, 1, &rectFragShader, &rectFragSize);
-
-    glAttachShader(rectProgram, rectVert);
-    glAttachShader(rectProgram, rectFrag);
+    Shaders rectShaders = Clay_Angle_CreateShaderProgram(&rectProgram, &rectVAO, rectVertShader, rectFragShader);
 
     glBindAttribLocation(rectProgram, 0, "a_position");
     glBindAttribLocation(rectProgram, 1, "a_color");
     glBindAttribLocation(rectProgram, 2, "a_sizeCenter");
     glBindAttribLocation(rectProgram, 3, "a_radius");
 
-    glCompileShader(rectVert);
-    glCompileShader(rectFrag);
-
-    glLinkProgram(rectProgram);
-
-    glValidateProgram(rectProgram);
-
-    GLint success;
-    glGetProgramiv(rectProgram, GL_VALIDATE_STATUS, &success);
-    if (!success) {
-        char buf[256];
-        GLsizei length;
-        glGetProgramInfoLog(rectProgram, 256, &length, buf);
-        buf[length] = '\0';
-        fprintf(stderr, "%s", buf);
-    }
-
-    glUseProgram(rectProgram);
-
-    glGenVertexArrays(1, &rectVAO);
-    glGenBuffers(1, &rectBuffer);
-    glBindBuffer(GL_ARRAY_BUFFER, rectBuffer);
-    glBindVertexArray(rectVAO);
+    Clay_Angle_CompileShader(rectProgram, &rectBuffer, &rectVAO, rectShaders.vert, rectShaders.frag);
     for (int i = 0; i < 4; i++) {
         glVertexAttribPointer(i, 4, GL_FLOAT, false, sizeof(RectVert), (void *)(i * sizeof(float) * 4));
         glEnableVertexAttribArray(i);
     }
+
+    Shaders textShaders = Clay_Angle_CreateShaderProgram(&textProgram, &textVAO, imgVertShader, imgFragShader);
+
+    glBindAttribLocation(textProgram, 0, "a_position");
+    glBindAttribLocation(textProgram, 1, "a_texPos");
+
+    Clay_Angle_CompileShader(textProgram, &textBuffer, &textVAO, textShaders.vert, textShaders.frag);
+
+    glVertexAttribPointer(0, 2, GL_FLOAT, false, 6 * sizeof(float), (void *)(0));
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(1, 2, GL_FLOAT, false, 6 * sizeof(float), (void *)(2));
+    glEnableVertexAttribArray(1);
 }
 
 GlyphVerts Clay_Angle_DrawText(Clay_String *text, Clay_TextElementConfig *config);
