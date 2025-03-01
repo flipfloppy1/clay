@@ -17,7 +17,10 @@ int main() {
     Clay_Initialize(arena, (Clay_Dimensions){screenWidth, screenHeight}, (Clay_ErrorHandler){0});
     Clay_SetMeasureTextFunction(Clay_HB_MeasureText);
 
-    glClearColor(0.5f,0.0f,0.5f,1.0f);
+
+    Clay_TextElementConfig textConfig = (Clay_TextElementConfig){.textColor = {0,0,0,1},.fontId = Clay_Angle_LoadFont(&CLAY_STRING("IosevkaAile-Light.ttc"),18),.fontSize = 18};
+
+    glClearColor(0.2f,0.2f,0.5f,1.0f);
 
     while (!glfwWindowShouldClose(gWindow)) {
         glfwPollEvents();
@@ -25,8 +28,10 @@ int main() {
 
         Clay_BeginLayout();
 
-        CLAY(CLAY_LAYOUT({.childAlignment={.x=CLAY_ALIGN_X_CENTER,.y=CLAY_ALIGN_Y_CENTER},.sizing = {.width = CLAY_SIZING_GROW(), .height = CLAY_SIZING_GROW()}})) {
-            CLAY(CLAY_LAYOUT({.sizing = {.width = CLAY_SIZING_FIXED(200), .height = CLAY_SIZING_FIXED(200) }}),CLAY_RECTANGLE({.cornerRadius = {.topLeft = 15,.bottomLeft = 15, .bottomRight = 15,.topRight = 15},.color = {1, 1, 1, 1}})) {}
+        CLAY(CLAY_LAYOUT({.childAlignment={.x=CLAY_ALIGN_X_CENTER,.y=CLAY_ALIGN_Y_TOP},.sizing = {.width = CLAY_SIZING_GROW(), .height = CLAY_SIZING_GROW()}})) {
+            CLAY(CLAY_LAYOUT({.sizing = {.width = CLAY_SIZING_GROW(), .height = CLAY_SIZING_FIXED(300) }}),CLAY_RECTANGLE({.color = {0.1, 0.4, 0.65, 1}})) {
+                CLAY(CLAY_TEXT(CLAY_STRING("This is some text"),&textConfig)) {}
+            }
         }
 
         Clay_RenderCommandArray commands = Clay_EndLayout();

@@ -1,11 +1,11 @@
-#define CLAY_IMPLEMENTATION
-#include "../../clay.h"
-#include <GLFW/glfw3.h>
 #ifndef CLAY_ANGLE_OPENGL_HEADER
 #include <angle_gl.h>
 #else
 #include CLAY_ANGLE_OPENGL_HEADER
 #endif
+#define CLAY_IMPLEMENTATION
+#include "../../clay.h"
+#include <GLFW/glfw3.h>
 #include <ft2build.h>
 #include <hb.h>
 #include <math.h>
@@ -15,7 +15,22 @@
 #include FT_FREETYPE_H
 
 typedef struct {
-    int xAdvance;
+    float x, y, z, w;
+} vec4;
+
+typedef struct {
+    vec4 glPosTexPos;
+    vec4 color;
+} GlyphVert;
+
+typedef struct {
+    int length;
+    GLuint textureId;
+    GlyphVert *glyphVerts;
+} GlyphVerts;
+
+typedef struct {
+    int xAdvance, yOff;
     float xTex, yTex, texWidth, texHeight;
 } Glyph;
 
@@ -25,11 +40,17 @@ typedef struct {
     int size;
     Glyph glyphs[128];
     int texWidth, texHeight;
+    GLuint textureId;
     void *texture;
 } Angle_Font;
 
 GLFWwindow *gWindow;
 FT_Library gFTLib;
+
+GLuint textBuffer;
+GLuint textVAO;
+
+int gWidth, gHeight;
 
 #define MAX_FONTS 16
 
@@ -46,6 +67,8 @@ void DebugMsg(
 
 void GetFramebufferSize(int *width, int *height) {
     glfwGetFramebufferSize(gWindow, width, height);
+    gWidth = *width;
+    gHeight = *height;
 }
 
 void Clay_Angle_Initialize(int width, int height, const char *title) {
@@ -79,17 +102,18 @@ void Clay_Angle_Initialize(int width, int height, const char *title) {
 
     glfwSetInputMode(gWindow, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
 
-
     glViewport(0, 0, width, height);
     glDebugMessageCallback(DebugMsg, NULL);
 
-        if (FT_Init_FreeType(&gFTLib)) {
+    if (FT_Init_FreeType(&gFTLib)) {
         fprintf(stderr, "Failed to init freetype\n");
         glfwTerminate();
         exit(1);
     }
 
     glfwGetFramebufferSize(gWindow, &width, &height);
+    gWidth = width;
+    gHeight = height;
     Clay_Angle_GL_Init(width, height);
 }
 
@@ -114,7 +138,11 @@ int Clay_Angle_LoadFont(Clay_String *path, int size) {
     FT_Error error = FT_New_Face(gFTLib, strArr, 0, &font.ftFace);
 
     if (error) {
-        fprintf(stderr, "Error loading font:'%s'\n", strArr);
+        if (error == FT_Err_Cannot_Open_Resource) {
+            fprintf(stderr, "Unrecognised format for font:'%s'\n", strArr);
+        } else {
+            fprintf(stderr, "Error loading font:'%s'\n", strArr);
+        }
         hb_blob_destroy(blob);
         hb_face_destroy(face);
         hb_font_destroy(font.hbFont);
@@ -149,6 +177,7 @@ int Clay_Angle_LoadFont(Clay_String *path, int size) {
         font.glyphs[c].yTex = 1.0f - (float)yPos / (float)font.texHeight;
         font.glyphs[c].texWidth = (float)bitmap.width / (float)font.texWidth;
         font.glyphs[c].texHeight = (float)bitmap.rows / (float)font.texHeight;
+        font.glyphs[c].xAdvance = 0;
 
         for (int y = 0; y < bitmap.rows; y++) {
             memcpy(font.texture + xPos + (yPos + y) * font.texWidth, bitmap.buffer + y * bitmap.width, bitmap.width);
@@ -165,7 +194,41 @@ int Clay_Angle_LoadFont(Clay_String *path, int size) {
     return gFontNum - 1;
 }
 
-void Clay_Angle_DrawText(Clay_String *text, Clay_TextElementConfig *config) {}
+static GlyphVerts Clay_Angle_DrawText(Clay_String *text, Clay_TextElementConfig *config) {
+    GlyphVerts verts;
+    int printableCount;
+    for (int i = 0; i < text->length; i++) {
+        if (text->chars[i] < 32 || text->chars[i] > 126)
+            continue;
+
+        printableCount++;
+    }
+    verts.glyphVerts = malloc(sizeof(GlyphVert) * 6 * printableCount);
+    int index = 0;
+    float xAdvance = -1.0f;
+    for (int i = 0; i < text->length; i++) {
+        if (text->chars[i] < 32 || text->chars[i] > 126)
+            continue;
+
+        Angle_Font font = gAngleFonts[config->fontId];
+        Glyph c = font.glyphs[text->chars[i]];
+        float normAdvance = (float)c.xAdvance / (float)gWidth;
+        vec4 textColor = (vec4){.x = config->textColor.r, .y = config->textColor.g, .z = config->textColor.b, .w = config->textColor.a};
+        float xOff = (float)c.xAdvance / (float)gWidth;
+        verts.glyphVerts[index * 6 + 0] = (GlyphVert){.color = textColor,.glPosTexPos.x = xAdvance + xOff, .glPosTexPos.y=c.yOff,.glPosTexPos.z=c.xTex,.glPosTexPos.w=c.yTex};
+        verts.glyphVerts[index * 6 + 1] = (GlyphVert){.color = textColor,.glPosTexPos.x = xAdvance + xOff, .glPosTexPos.y = c.yOff};
+        verts.glyphVerts[index * 6 + 2];
+        verts.glyphVerts[index * 6 + 3];
+        verts.glyphVerts[index * 6 + 4];
+        verts.glyphVerts[index * 6 + 5];
+        verts.length += 6;
+
+        index++;
+        xAdvance += xOff;
+    }
+
+    return verts;
+}
 
 static Clay_Dimensions Clay_HB_MeasureText(Clay_String *text, Clay_TextElementConfig *config) {
     Clay_Dimensions textSize = {0};
