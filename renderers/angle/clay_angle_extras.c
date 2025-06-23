@@ -21,6 +21,10 @@ typedef struct {
 } vec4;
 
 typedef struct {
+    float x, y;
+} vec2;
+
+typedef struct {
     vec4 glPosTexPos;
     vec4 color;
 } GlyphVert;
@@ -71,6 +75,12 @@ void GetFramebufferSize(int *width, int *height) {
     glfwGetFramebufferSize(gWindow, width, height);
     gWidth = *width;
     gHeight = *height;
+}
+
+void GetMonitorSize(float *width, float *height) {
+    const GLFWvidmode *vidMode = glfwGetVideoMode(glfwGetPrimaryMonitor());
+    *width = (float)vidMode->width;
+    *height = (float)vidMode->height;
 }
 
 void Clay_Angle_Initialize(int width, int height, const char *title) {
@@ -196,41 +206,41 @@ int Clay_Angle_LoadFont(Clay_String *path, int size) {
     return gFontNum - 1;
 }
 
-static GlyphVerts Clay_Angle_DrawText(Clay_String *text, Clay_TextElementConfig *config) {
-    GlyphVerts verts;
-    int printableCount;
-    for (int i = 0; i < text->length; i++) {
-        if (text->chars[i] < 32 || text->chars[i] > 126)
-            continue;
+// static GlyphVerts Clay_Angle_DrawText(Clay_String *text, Clay_TextElementConfig *config) {
+//     GlyphVerts verts;
+//     int printableCount;
+//     for (int i = 0; i < text->length; i++) {
+//         if (text->chars[i] < 32 || text->chars[i] > 126)
+//             continue;
 
-        printableCount++;
-    }
-    verts.glyphVerts = malloc(sizeof(GlyphVert) * 6 * printableCount);
-    int index = 0;
-    float xAdvance = -1.0f;
-    for (int i = 0; i < text->length; i++) {
-        if (text->chars[i] < 32 || text->chars[i] > 126)
-            continue;
+//         printableCount++;
+//     }
+//     verts.glyphVerts = malloc(sizeof(GlyphVert) * 6 * printableCount);
+//     int index = 0;
+//     float xAdvance = -1.0f;
+//     for (int i = 0; i < text->length; i++) {
+//         if (text->chars[i] < 32 || text->chars[i] > 126)
+//             continue;
 
-        Angle_Font font = gAngleFonts[config->fontId];
-        Glyph c = font.glyphs[text->chars[i]];
-        float normAdvance = (float)c.xAdvance / (float)gWidth;
-        vec4 textColor = (vec4){.x = config->textColor.r, .y = config->textColor.g, .z = config->textColor.b, .w = config->textColor.a};
-        float xOff = (float)c.xAdvance / (float)gWidth;
-        verts.glyphVerts[index * 6 + 0] = (GlyphVert){.color = textColor,.glPosTexPos.x = xAdvance + xOff, .glPosTexPos.y=c.yOff,.glPosTexPos.z=c.xTex,.glPosTexPos.w=c.yTex};
-        verts.glyphVerts[index * 6 + 1] = (GlyphVert){.color = textColor,.glPosTexPos.x = xAdvance + xOff, .glPosTexPos.y = c.yOff};
-        verts.glyphVerts[index * 6 + 2];
-        verts.glyphVerts[index * 6 + 3];
-        verts.glyphVerts[index * 6 + 4];
-        verts.glyphVerts[index * 6 + 5];
-        verts.length += 6;
+//         Angle_Font font = gAngleFonts[config->fontId];
+//         Glyph c = font.glyphs[(int)text->chars[i]];
+//         float normAdvance = (float)c.xAdvance / (float)gWidth;
+//         vec4 textColor = (vec4){.x = config->textColor.r, .y = config->textColor.g, .z = config->textColor.b, .w = config->textColor.a};
+//         float xOff = (float)c.xAdvance / (float)gWidth;
+//         verts.glyphVerts[index * 6 + 0] = (GlyphVert){.color = textColor,.glPosTexPos.x = xAdvance + xOff, .glPosTexPos.y=c.yOff,.glPosTexPos.z=c.xTex,.glPosTexPos.w=c.yTex};
+//         verts.glyphVerts[index * 6 + 1] = (GlyphVert){.color = textColor,.glPosTexPos.x = xAdvance + xOff, .glPosTexPos.y = c.yOff};
+//         // verts.glyphVerts[index * 6 + 2];
+//         // verts.glyphVerts[index * 6 + 3];
+//         // verts.glyphVerts[index * 6 + 4];
+//         // verts.glyphVerts[index * 6 + 5];
+//         verts.length += 6;
 
-        index++;
-        xAdvance += xOff;
-    }
+//         index++;
+//         xAdvance += xOff;
+//     }
 
-    return verts;
-}
+//     return verts;
+// }
 
 static Clay_Dimensions Clay_HB_MeasureText(Clay_String *text, Clay_TextElementConfig *config) {
     Clay_Dimensions textSize = {0};
@@ -259,7 +269,7 @@ static Clay_Dimensions Clay_HB_MeasureText(Clay_String *text, Clay_TextElementCo
             continue; // Don't have to increment glyphIndex since printable
                       // characters aren't part of the set
         }
-        int index = text->chars[i] - 32;
+        // int index = text->chars[i] - 32;
         if (glyphCount <= i) {
             break;
         }
